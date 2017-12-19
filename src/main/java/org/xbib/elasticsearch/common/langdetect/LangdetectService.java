@@ -77,6 +77,7 @@ public class LangdetectService {
 
     private void load(Settings settings) {
         if (settings.equals(Settings.EMPTY)) {
+            System.out.println("Setting is empty YES");
             return;
         }
         try {
@@ -111,7 +112,7 @@ public class LangdetectService {
         this.alphaWidth = settings.getAsDouble("alpha_width", 0.05);
         this.iterationLimit = settings.getAsInt("iteration_limit", 10000);
         this.probThreshold = settings.getAsDouble("prob_threshold", 0.1);
-        this.convThreshold = settings.getAsDouble("conv_threshold", 0.99999);
+        this.convThreshold = settings.getAsDouble("conv_threshold", 0.00000009);
         this.baseFreq = settings.getAsInt("base_freq", 10000);
         this.filterPattern = settings.get("pattern") != null ?
                 Pattern.compile(settings.get("pattern"), Pattern.UNICODE_CHARACTER_CLASS) : null;
@@ -180,6 +181,7 @@ public class LangdetectService {
         }
         List<String> list = new ArrayList<>();
         languages = sortProbability(languages, detectBlock(list, text));
+        // System.out.format("LANGS: %s\n", languages);
         return languages.subList(0, Math.min(languages.size(), settings.getAsInt("max", languages.size())));
     }
 
@@ -187,6 +189,10 @@ public class LangdetectService {
         // clean all non-work characters from text
         String text = string.replaceAll(word.pattern(), " ");
         extractNGrams(list, text);
+        // System.out.format("LIST after NGrams : ");
+        // System.out.println(list);
+        // System.out.format("Text: ");
+        // System.out.println(text);
         double[] langprob = new double[langlist.size()];
         if (list.isEmpty()) {
             return langprob;
@@ -199,6 +205,10 @@ public class LangdetectService {
             double a = this.alpha + rand.nextGaussian() * alphaWidth;
             for (int i = 0;; ++i) {
                 int r = rand.nextInt(list.size());
+                // System.out.format("random: %d list: ", r);
+                // System.out.println(list.get(r));
+                // System.out.format("a: ");
+                // System.out.println(a);
                 updateLangProb(prob, list.get(r), a);
                 if (i % 5 == 0 && normalizeProb(prob) > convThreshold || i >= iterationLimit) {
                     break;
@@ -206,6 +216,7 @@ public class LangdetectService {
             }
             for (int j = 0; j < langprob.length; ++j) {
                 langprob[j] += prob[j] / nTrial;
+                // System.out.format("j: %d langprob: %f prob: %f nTrial: %d\n", j, langprob[j], prob[j], nTrial);
             }
         }
         return langprob;
@@ -270,13 +281,14 @@ public class LangdetectService {
     private List<Language> sortProbability(List<Language> list, double[] prob) {
         for (int j = 0; j < prob.length; ++j) {
             double p = prob[j];
-            if (p > probThreshold) {
+            if (p > probThreshold || (langlist.get(j).equals("th") && p > 0.09)) {
                 for (int i = 0; i <= list.size(); ++i) {
                     if (i == list.size() || list.get(i).getProbability() < p) {
                         String code = langlist.get(j);
                         if (langmap != null && langmap.containsKey(code)) {
                             code = langmap.get(code);
                         }
+                        // System.out.format("add lang: %s\n", code);
                         list.add(i, new Language(code, p));
                         break;
                     }
